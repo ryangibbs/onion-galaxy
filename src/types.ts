@@ -36,6 +36,8 @@ export interface GalaxyLink {
   typeOnly: boolean
   preCompilationOnly: boolean
   circular: boolean
+  /** Removing this import is part of the suggested way to break its cycle */
+  cut: boolean
   /** Number of import statements collapsed into this edge */
   count: number
 }
@@ -52,6 +54,8 @@ export interface GalaxyCycle {
   id: number
   size: number
   members: string[]
+  /** A minimal set of imports whose removal breaks every cycle among the members */
+  cuts: { source: string; target: string }[]
 }
 
 export interface GalaxyMeta {
@@ -67,6 +71,20 @@ export interface GalaxyMeta {
   unresolved: number
   hasChurn: boolean
   typeCycles: boolean
+  /** Imports suggested for removal across all cycles */
+  cuts: number
+}
+
+export const LAYOUTS = ['spiral', 'stability', 'ring', 'sphere'] as const
+export type LayoutName = (typeof LAYOUTS)[number]
+
+export const EDITORS = ['vscode', 'cursor', 'zed', 'webstorm', 'idea', 'none'] as const
+export type EditorName = (typeof EDITORS)[number]
+
+/** Presentation options, chosen on the command line */
+export interface GalaxyView {
+  layout: LayoutName
+  editor: EditorName
 }
 
 export interface GalaxyData {
@@ -75,4 +93,5 @@ export interface GalaxyData {
   nodes: GalaxyNode[]
   links: GalaxyLink[]
   cycles: GalaxyCycle[]
+  view: GalaxyView
 }

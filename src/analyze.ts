@@ -3,8 +3,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { cruise, type ICruiseOptions, type ICruiseResult, type IModule } from 'dependency-cruiser'
 import extractTSConfig from 'dependency-cruiser/config-utl/extract-ts-config'
+import { breakCycles } from './cycles.ts'
 import { stronglyConnectedComponents } from './scc.ts'
-import type { GalaxyCluster, GalaxyCycle, GalaxyData, GalaxyLink, GalaxyNode } from './types.ts'
+import type { GalaxyCluster, GalaxyCycle, GalaxyData, GalaxyLink, GalaxyNode, GalaxyView } from './types.ts'
 
 const DEFAULT_EXCLUDE = '(^|/)(dist|build|coverage|tmp|\\.git)/|\\.d\\.ts$'
 /**
@@ -28,6 +29,7 @@ export interface AnalyzeOptions {
   git?: boolean
   /** Directory depth that defines a star system; auto when omitted */
   clusterDepth?: number
+  view?: Partial<GalaxyView>
   log?: (msg: string) => void
 }
 
@@ -50,6 +52,7 @@ export async function analyze({
   typeCycles = false,
   git = true,
   clusterDepth,
+  view,
   log = () => {},
 }: AnalyzeOptions): Promise<GalaxyData> {
   const cwd = process.cwd()
@@ -81,7 +84,8 @@ export async function analyze({
     const result: ICruiseResult = typeof output === 'string' ? JSON.parse(output) : output
     log(`Found ${result.summary.totalCruised} modules, ${result.summary.totalDependenciesCruised} dependencies`)
 
-    return buildGalaxy(result, { root, typeCycles, churn: git ? gitChurn(log) : new Map(), clusterDepth })
+    const galaxy = buildGalaxy(result, { root, typeCycles, churn: git ? gitChurn(log) : new Map(), clusterDepth })
+    return { ...galaxy, view: { layout: 'spiral', editor: 'vscode', ...view } }
   } finally {
     process.chdir(cwd)
   }
@@ -115,7 +119,10 @@ function addTo(map: Map<string, Set<string>>, key: string, value: string) {
   map.set(key, set)
 }
 
-function buildGalaxy(result: ICruiseResult, { root, typeCycles, churn, clusterDepth }: BuildOptions): GalaxyData {
+function buildGalaxy(
+  result: ICruiseResult,
+  { root, typeCycles, churn, clusterDepth }: BuildOptions,
+): Omit<GalaxyData, 'view'> {
   const localModules = result.modules.filter(isProjectFile)
   const localIds = new Set(localModules.map(m => m.source))
 
@@ -146,6 +153,7 @@ function buildGalaxy(result: ICruiseResult, { root, typeCycles, churn, clusterDe
         typeOnly: !!d.typeOnly || d.dependencyTypes.includes('type-only'),
         preCompilationOnly: !!d.preCompilationOnly,
         circular: false,
+        cut: false,
         count: 1,
       }
       if (d.couldNotResolve) {
@@ -164,7 +172,7 @@ function buildGalaxy(result: ICruiseResult, { root, typeCycles, churn, clusterDe
   const cycles: GalaxyCycle[] = stronglyConnectedComponents(adjacency)
     .filter(c => c.length > 1 || adjacency.get(c[0]!)!.includes(c[0]!))
     .toSorted((a, b) => b.length - a.length)
-    .map((members, i) => ({ id: i, size: members.length, members }))
+    .map((members, i) => ({ id: i, size: members.length, members, cuts: [] }))
   const cycleOf = new Map<string, number>()
   for (const c of cycles) for (const id of c.members) cycleOf.set(id, c.id)
 
@@ -214,6 +222,28 @@ function buildGalaxy(result: ICruiseResult, { root, typeCycles, churn, clusterDe
     }
   }
 
+  // Suggest a minimal set of imports to remove per cycle; heavier edges (more import statements) cost more to cut
+  const circularByCycle = new Map<number, GalaxyLink[]>()
+  for (const l of linkMap.values()) {
+    if (!l.circular) continue
+    const c = cycleOf.get(l.source)!
+    const list = circularByCycle.get(c)
+    if (list) list.push(l)
+    else circularByCycle.set(c, [l])
+  }
+  for (const cycle of cycles) {
+    const edges = (circularByCycle.get(cycle.id) ?? []).map(l => ({
+      source: l.source,
+      target: l.target,
+      weight: l.count,
+      link: l,
+    }))
+    for (const e of breakCycles(edges)) {
+      e.link.cut = true
+      cycle.cuts.push({ source: e.source, target: e.target })
+    }
+  }
+
   return {
     meta: {
       root: path.resolve(root),
@@ -228,6 +258,7 @@ function buildGalaxy(result: ICruiseResult, { root, typeCycles, churn, clusterDe
       unresolved: fileNodes.reduce((a, n) => a + n.unresolved.length, 0),
       hasChurn: churn.size > 0,
       typeCycles,
+      cuts: cycles.reduce((a, c) => a + c.cuts.length, 0),
     },
     clusters: [...clusters.values()].toSorted((a, b) => b.files - a.files),
     nodes: [...nodes.values()],

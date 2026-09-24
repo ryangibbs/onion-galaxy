@@ -1,9 +1,30 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["unicorn", "typescript", "oxc", "import"],
+  "plugins": [
+    "unicorn",
+    "typescript",
+    "oxc",
+    "import"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
   },
-  "ignorePatterns": ["dist/**", "out/**", "fixture/**"]
+  "ignorePatterns": [
+    "dist/**",
+    "out/**",
+    "fixture/**"
+  ],
+  "rules": {
+    "no-underscore-dangle": [
+      "warn",
+      {
+        "allow": [
+          "__threeObj",
+          "__lineObj",
+          "__photonsObj"
+        ]
+      }
+    ]
+  }
 }

@@ -18,11 +18,13 @@ const galaxy = (project: string): GalaxyData => ({
     unresolved: 0,
     hasChurn: false,
     typeCycles: false,
+    cuts: 0,
   },
   clusters: [],
   nodes: [],
   links: [],
   cycles: [],
+  view: { layout: 'spiral', editor: 'vscode' },
 })
 
 test('produces one self-contained page', () => {

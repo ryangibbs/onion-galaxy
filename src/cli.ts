@@ -5,6 +5,7 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { analyze } from './analyze.ts'
 import { renderHtml } from './render.ts'
+import { EDITORS, LAYOUTS, type EditorName, type LayoutName } from './types.ts'
 
 const HELP = `onion-galaxy [paths...] [options]
 
@@ -18,6 +19,8 @@ Maps a JS/TS codebase's imports as an interactive 3D galaxy.
   -x, --exclude <regex>  Paths to skip (default: dist, build, coverage, tmp, *.d.ts)
       --cluster-depth <n> Directory depth that defines a star system (default: auto)
       --type-cycles      Count \`import type\` edges when detecting cycles
+      --layout <name>    Initial layout: ${LAYOUTS.join(', ')} (default: spiral; switchable in the map)
+      --editor <name>    Editor that "Open file" links use: ${EDITORS.join(', ')} (default: vscode)
       --no-git           Skip git churn stats
       --open             Open the result in your browser
   -h, --help             Show this help`
@@ -32,6 +35,8 @@ const { values, positionals } = parseArgs({
     exclude: { type: 'string', short: 'x' },
     'cluster-depth': { type: 'string' },
     'type-cycles': { type: 'boolean', default: false },
+    layout: { type: 'string', default: 'spiral' },
+    editor: { type: 'string', default: 'vscode' },
     'no-git': { type: 'boolean', default: false },
     open: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
@@ -49,6 +54,14 @@ if (clusterDepth !== undefined && !(Number.isInteger(clusterDepth) && clusterDep
   process.exit(1)
 }
 
+const oneOf = <T extends string>(flag: string, value: string, allowed: readonly T[]): T => {
+  if ((allowed as readonly string[]).includes(value)) return value as T
+  console.error(`--${flag} must be one of: ${allowed.join(', ')}`)
+  process.exit(1)
+}
+const layout = oneOf<LayoutName>('layout', values.layout, LAYOUTS)
+const editor = oneOf<EditorName>('editor', values.editor, EDITORS)
+
 const root = path.resolve(values.root)
 const paths = positionals.length ? positionals : [existsSync(path.join(root, 'src')) ? 'src' : '.']
 const log = (msg: string) => console.error(`\x1b[36m✦\x1b[0m ${msg}`)
@@ -61,12 +74,16 @@ const galaxy = await analyze({
   typeCycles: values['type-cycles'],
   git: !values['no-git'],
   clusterDepth,
+  view: { layout, editor },
   log,
 })
 
 const { meta } = galaxy
 log(`${meta.files} files · ${meta.imports} imports · ${galaxy.clusters.length} star systems`)
-if (meta.cycles) log(`\x1b[31m${meta.cycles} circular clusters spanning ${meta.filesInCycles} files\x1b[0m`)
+if (meta.cycles) {
+  log(`\x1b[31m${meta.cycles} circular clusters spanning ${meta.filesInCycles} files\x1b[0m`)
+  log(`Removing ${meta.cuts} imports would break them all (click a cycle in the map for the list)`)
+}
 
 if (values.json) {
   writeFileSync(values.json, JSON.stringify(galaxy, null, 2))

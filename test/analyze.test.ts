@@ -32,6 +32,27 @@ test('finds both runtime cycles', () => {
   assert.equal(link('src/core/a.ts', 'src/util/types.ts').circular, false)
 })
 
+test('suggests one import to cut per fixture cycle', () => {
+  assert.deepEqual(
+    galaxy.cycles.map(c => c.cuts.length),
+    [1, 1],
+  )
+  assert.equal(galaxy.meta.cuts, 2)
+  for (const c of galaxy.cycles) {
+    for (const cut of c.cuts) {
+      assert.ok(c.members.includes(cut.source) && c.members.includes(cut.target))
+      assert.equal(link(cut.source, cut.target).cut, true)
+    }
+  }
+  assert.equal(galaxy.links.filter(l => l.cut).length, 2)
+})
+
+test('carries the chosen presentation options', async () => {
+  assert.deepEqual(galaxy.view, { layout: 'spiral', editor: 'vscode' })
+  const custom = await analyze({ root, paths: ['src'], git: false, view: { layout: 'ring', editor: 'none' } })
+  assert.deepEqual(custom.view, { layout: 'ring', editor: 'none' })
+})
+
 test('tags type-only and lazy imports', () => {
   assert.equal(link('src/core/a.ts', 'src/util/types.ts').typeOnly, true)
   assert.equal(link('src/ui/view.ts', 'src/ui/lazy.ts').dynamic, true)

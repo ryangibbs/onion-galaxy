@@ -21,6 +21,8 @@
         --red: #ff3b4a;
         --imports: #5ee7ff;
         --importedBy: #ffb347;
+        --cut: #ffd166;
+        --path: #7dffcf;
         --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
         --sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
       }
@@ -109,6 +111,10 @@
       .stat.red b {
         color: var(--red);
         text-shadow: 0 0 12px rgba(255, 59, 74, 0.6);
+      }
+      .stat.cut b {
+        color: var(--cut);
+        text-shadow: 0 0 12px rgba(255, 209, 102, 0.5);
       }
 
       /* Search */
@@ -234,6 +240,9 @@
       .row .count {
         font: 11px var(--mono);
         color: var(--muted);
+      }
+      .row .count .c {
+        color: var(--cut);
       }
       .row .count .r {
         color: var(--red);
@@ -475,6 +484,125 @@
       .muted {
         color: var(--muted);
       }
+      #details p {
+        margin: 6px 0 14px;
+        line-height: 1.5;
+      }
+      .cut-note {
+        margin-top: 8px;
+        color: var(--cut);
+      }
+      .cut-note button,
+      .path-chain button {
+        color: inherit;
+        text-decoration: underline dotted;
+        text-underline-offset: 3px;
+      }
+      .cut-text {
+        color: var(--cut);
+      }
+      .tag.cut {
+        color: var(--cut);
+        background: rgba(255, 209, 102, 0.12);
+      }
+      .cut-row button {
+        color: var(--cut) !important;
+      }
+      .cut-row .arrow,
+      .path-chain .arrow {
+        margin: 0 2px;
+        opacity: 0.7;
+      }
+      .path-chain {
+        font: 11px/1.8 var(--mono);
+        padding: 10px;
+        border: 1px solid rgba(125, 255, 207, 0.35);
+        background: rgba(125, 255, 207, 0.06);
+        border-radius: 8px;
+        margin-bottom: 16px;
+        color: var(--path);
+      }
+
+      /* Actions under a file's title */
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 14px;
+      }
+      .action {
+        font: 11px var(--mono);
+        padding: 5px 9px;
+        border-radius: 6px;
+        border: 1px solid var(--panel-border);
+        background: rgba(127, 216, 255, 0.05);
+        color: var(--text);
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .action:hover {
+        background: rgba(127, 216, 255, 0.12);
+      }
+      .action.on {
+        border-color: rgba(255, 179, 71, 0.6);
+        background: rgba(255, 179, 71, 0.14);
+      }
+      .action b {
+        font-weight: 600;
+        color: var(--importedBy);
+        margin-left: 3px;
+      }
+      .blast {
+        padding: 10px 12px;
+        border: 1px solid rgba(255, 179, 71, 0.3);
+        background: rgba(255, 179, 71, 0.05);
+        border-radius: 8px;
+        margin-bottom: 16px;
+      }
+      .blast p {
+        margin: 4px 0 10px !important;
+        font-size: 12px;
+      }
+      .hops {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 54px;
+      }
+      .hops span {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        height: 100%;
+        font: 9px var(--mono);
+        color: var(--muted);
+        gap: 2px;
+      }
+      .hops i {
+        width: 100%;
+        background: var(--c);
+        border-radius: 2px 2px 0 0;
+        opacity: 0.85;
+      }
+
+      select {
+        font: 12px var(--sans);
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 3px 6px;
+      }
+      select:focus-visible {
+        outline: 2px solid var(--accent);
+      }
+      #layout-hint {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
 
       .float-tooltip-kap {
         background: var(--panel) !important;
@@ -531,6 +659,16 @@
       }
       .sys-label:hover {
         filter: brightness(1.4);
+      }
+      .guide-label {
+        position: absolute;
+        left: 0;
+        top: 0;
+        font: 10px var(--mono);
+        letter-spacing: 0.12em;
+        color: #8aa0ff;
+        opacity: 0.7;
+        white-space: nowrap;
       }
       #hint {
         position: fixed;
@@ -605,29 +743,6 @@
           top: auto;
           height: 60vh;
         }
-        #labels {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-          overflow: hidden;
-        }
-        .sys-label {
-          position: absolute;
-          left: 0;
-          top: 0;
-          pointer-events: auto;
-          white-space: nowrap;
-          font: 600 11px var(--sans);
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          text-shadow:
-            0 0 8px currentColor,
-            0 0 2px #000;
-          transition: opacity 0.2s;
-        }
-        .sys-label:hover {
-          filter: brightness(1.4);
-        }
         #hint {
           display: none;
         }
@@ -659,7 +774,20 @@
           <label class="toggle">Only show cycles <input type="checkbox" id="t-cycles" /></label>
           <label class="toggle">Hide type-only imports <input type="checkbox" id="t-types" /></label>
           <label class="toggle">System labels <input type="checkbox" id="t-labels" checked /></label>
+          <label class="toggle">Always show planets <input type="checkbox" id="t-detail" /></label>
           <label class="toggle">Auto-rotate <input type="checkbox" id="t-rotate" /></label>
+          <label class="toggle"
+            >Layout
+            <select id="layout">
+              <option value="spiral">Spiral</option>
+              <option value="stability">Stability</option>
+              <option value="ring">Ring</option>
+              <option value="sphere">Sphere</option>
+            </select>
+          </label>
+          <div id="layout-hint" hidden>
+            Distance from the centre is instability: stable files at the core, unstable at the rim.
+          </div>
         </div>
       </div>
     </div>
@@ -675,7 +803,9 @@
 
     <aside id="details" class="panel" aria-live="polite"></aside>
     <div id="toast" role="status" aria-live="polite"></div>
-    <div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan · Click a planet · Esc to reset</div>
+    <div id="hint">
+      Drag to orbit · Scroll to zoom · Right-drag to pan · Click a planet · o opens it in your editor · Esc to reset
+    </div>
 
     <script id="galaxy-data" type="application/json">
       /*__DATA__*/
