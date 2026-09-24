@@ -1,0 +1,50 @@
+name: Release
+
+# Publishes to npm when a GitHub release is published. Uses npm trusted publishing (OIDC), so no
+# npm token or 2FA code is needed: configure it once on npmjs.com under the package's
+# Settings → Trusted Publisher → GitHub Actions (repository ryangibbs/onion-galaxy, workflow release.yml).
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for npm trusted publishing and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check the release tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::Release tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      # Trusted publishing needs npm 11.5.1 or newer
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      # prepublishOnly runs typecheck, build and tests before anything is uploaded
+      - name: Publish to npm
+        run: npm publish --provenance --access public

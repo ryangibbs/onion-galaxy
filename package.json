@@ -1,0 +1,65 @@
+{
+  "name": "@onion-party/galaxy",
+  "version": "0.2.0",
+  "description": "Interactive 3D galaxy map of a JS/TS codebase's imports, powered by dependency-cruiser",
+  "keywords": [
+    "dependency-cruiser",
+    "dependency-graph",
+    "circular-dependencies",
+    "import-graph",
+    "visualization",
+    "three.js",
+    "typescript",
+    "cli"
+  ],
+  "homepage": "https://github.com/ryangibbs/onion-galaxy#readme",
+  "bugs": {
+    "url": "https://github.com/ryangibbs/onion-galaxy/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryangibbs/onion-galaxy.git"
+  },
+  "license": "MIT",
+  "author": "onion-party",
+  "type": "module",
+  "bin": {
+    "onion-galaxy": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "packageManager": "pnpm@12.4.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc && pnpm build:viewer",
+    "build:viewer": "esbuild src/viewer/main.ts --bundle --minify --format=esm --legal-comments=none --outfile=dist/viewer/viewer.js && cp src/viewer/index.html dist/viewer/",
+    "typecheck": "tsc --noEmit && tsc -p src/viewer && tsc -p test",
+    "galaxy": "node src/cli.ts",
+    "test:fixture": "node src/cli.ts --root fixture --no-git -o out/fixture.html",
+    "prepublishOnly": "pnpm typecheck && pnpm build && pnpm test",
+    "test": "node --test 'test/**/*.test.ts'",
+    "lint": "oxlint .",
+    "lint:ci": "oxlint --deny-warnings .",
+    "format": "oxfmt src test",
+    "format:ci": "oxfmt --check src test"
+  },
+  "dependencies": {
+    "dependency-cruiser": "^18.4.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "3d-force-graph": "^1.80.0",
+    "@types/node": "^26.6.2",
+    "@types/three": "^0.186.0",
+    "esbuild": "^0.28.2",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "three": "^0.186.0"
+  }
+}
