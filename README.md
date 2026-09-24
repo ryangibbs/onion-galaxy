@@ -78,7 +78,7 @@ Neither is bad in itself; the smell is a stable file importing an unstable one.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Release notes are on [GitHub Releases](https://github.com/ryangibbs/onion-galaxy/releases); earlier versions are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

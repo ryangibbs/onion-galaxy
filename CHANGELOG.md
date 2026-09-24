@@ -1,10 +1,12 @@
 # Changelog
 
-All notable changes to this project are documented here. The format is based on
+Releases after 0.3.0 are automated with [semantic-release](https://semantic-release.gitbook.io/): their notes are
+generated from commit messages and published on [GitHub Releases](https://github.com/ryangibbs/onion-galaxy/releases).
+This file covers the releases before that. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-24
 
 ### Added
 
@@ -47,6 +49,6 @@ All notable changes to this project are documented here. The format is based on
 
 - Initial release.
 
-[Unreleased]: https://github.com/ryangibbs/onion-galaxy/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/ryangibbs/onion-galaxy/releases/tag/v0.2.0
-[0.1.0]: https://github.com/ryangibbs/onion-galaxy/releases/tag/v0.1.0
+[0.3.0]: https://github.com/ryangibbs/onion-galaxy/releases/tag/v0.3.0
+[0.2.0]: https://www.npmjs.com/package/@onion-party/galaxy/v/0.2.0
+[0.1.0]: https://www.npmjs.com/package/@onion-party/galaxy/v/0.1.0
