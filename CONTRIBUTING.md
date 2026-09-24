@@ -71,4 +71,6 @@ It then tags the commit (`v0.4.0`), publishes to npm with provenance via trusted
 creates a GitHub release with notes generated from the commits. `package.json` keeps the placeholder version
 `0.0.0-development` on purpose: the real version lives in the git tags and is set at publish time.
 
-If you squash-merge pull requests, the PR title becomes the commit message, so give it the prefix.
+Pull requests are **squash-merged**, and the **PR title** becomes the commit message on `main`, so the PR title is
+what counts. The "Conventional PR title" check fails until it has a valid prefix, and `main` requires it (along with
+CI) before merging. Commit messages inside a PR can be anything.
