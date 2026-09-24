@@ -1,6 +1,6 @@
 {
   "name": "@onion-party/galaxy",
-  "version": "0.2.0",
+  "version": "0.0.0-development",
   "description": "Interactive 3D galaxy map of a JS/TS codebase's imports, powered by dependency-cruiser",
   "keywords": [
     "dependency-cruiser",
@@ -60,6 +60,7 @@
     "esbuild": "^0.28.2",
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
+    "semantic-release": "^25.0.9",
     "three": "^0.186.0"
   }
 }

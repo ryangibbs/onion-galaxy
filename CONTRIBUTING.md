@@ -54,9 +54,21 @@ Dependabot is configured to hold it back.
 
 `pnpm-workspace.yaml` allows exactly one dependency install script, esbuild's, which fetches its native binary.
 
-## Releasing
+## Commit messages and releases
 
-1. Bump `version` in `package.json` and add an entry to `CHANGELOG.md`.
-2. Merge to `main`, then create a GitHub release tagged `v<version>` (e.g. `v0.3.0`).
-3. The Release workflow checks the tag matches `package.json`, runs typecheck, build and tests, and publishes to npm
-   with provenance via trusted publishing, so no npm token or 2FA code is needed.
+Releases are automatic. Every push to `main` that passes CI runs [semantic-release](https://semantic-release.gitbook.io/),
+which reads the new commit messages ([Conventional Commits](https://www.conventionalcommits.org/)) and decides whether
+to release:
+
+| Commit message                                             | Release                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
+| `fix: handle empty tsconfig paths`                         | patch (0.3.0 → 0.3.1)                                  |
+| `feat: add a timeline slider`                              | minor (0.3.0 → 0.4.0)                                  |
+| `feat!: drop Node 22` or a `BREAKING CHANGE:` footer       | major (0.3.0 → 1.0.0)                                  |
+| `docs:`, `test:`, `ci:`, `chore:`, `refactor:`, `perf:` …  | no release (`perf:` counts as a patch)                 |
+
+It then tags the commit (`v0.4.0`), publishes to npm with provenance via trusted publishing (no token needed), and
+creates a GitHub release with notes generated from the commits. `package.json` keeps the placeholder version
+`0.0.0-development` on purpose: the real version lives in the git tags and is set at publish time.
+
+If you squash-merge pull requests, the PR title becomes the commit message, so give it the prefix.

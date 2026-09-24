@@ -1,24 +1,46 @@
 name: Release
 
-# Publishes to npm when a GitHub release is published. Uses npm trusted publishing (OIDC), so no
-# npm token or 2FA code is needed: configure it once on npmjs.com under the package's
-# Settings → Trusted Publisher → GitHub Actions (repository ryangibbs/onion-galaxy, workflow release.yml).
+# Every push to main that passes CI is a release candidate: semantic-release reads the new commit
+# messages, and if any of them is a `feat:` or `fix:` (or a breaking change) it picks the next version,
+# tags it, publishes to npm and creates a GitHub release with generated notes. Other commits
+# (docs:, ci:, chore:, …) release nothing.
+#
+# Publishing uses npm trusted publishing (OIDC), so no npm token or 2FA code is needed. Configure it
+# once on npmjs.com under the package's Settings → Trusted Publisher → GitHub Actions:
+# repository ryangibbs/onion-galaxy, workflow release.yml, environment npm.
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write # OIDC token for npm trusted publishing and provenance
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  release:
+    # Only after CI passed for a push to main (or when started by hand)
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     environment: npm
+    permissions:
+      contents: write # push the version tag and create the GitHub release
+      issues: write # comment on issues fixed by the release
+      pull-requests: write # comment on pull requests included in the release
+      id-token: write # OIDC token for npm trusted publishing and provenance
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0 # semantic-release needs the full history and tags
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -28,23 +50,12 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check the release tag matches package.json
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
-            echo "::error::Release tag $GITHUB_REF_NAME does not match package.json version $version"
-            exit 1
-          fi
-
-      # Trusted publishing needs npm 11.5.1 or newer
-      - name: Update npm
-        run: npm install -g npm@latest
-
-      # prepublishOnly runs typecheck, build and tests before anything is uploaded
-      - name: Publish to npm
-        run: npm publish --provenance --access public
+      # prepublishOnly runs typecheck, build and tests again right before anything is uploaded
+      - name: Release
+        run: pnpm exec semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
