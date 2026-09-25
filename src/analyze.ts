@@ -4,6 +4,7 @@ import path from 'node:path'
 import { cruise, type ICruiseOptions, type ICruiseResult, type IModule } from 'dependency-cruiser'
 import extractTSConfig from 'dependency-cruiser/config-utl/extract-ts-config'
 import { breakCycles } from './cycles.ts'
+import { rankHotspots, topHotspotCount } from './hotspots.ts'
 import { stronglyConnectedComponents } from './scc.ts'
 import type { GalaxyCluster, GalaxyCycle, GalaxyData, GalaxyLink, GalaxyNode, GalaxyView } from './types.ts'
 
@@ -110,6 +111,8 @@ const newNode = (id: string, fields: Partial<GalaxyNode>): GalaxyNode => ({
   cycle: null,
   unresolved: [],
   violations: [],
+  hotspot: 0,
+  hotspotRank: null,
   ...fields,
 })
 
@@ -189,6 +192,10 @@ function buildGalaxy(
     addTo(dependents, l.target, l.source)
   }
 
+  // Hotspots: big files that change often (only meaningful with git history)
+  const hotspots = rankHotspots([...nodes.values()])
+  for (const [id, h] of hotspots) Object.assign(nodes.get(id)!, { hotspot: h.score, hotspotRank: h.rank })
+
   // Star systems: group files by directory prefix
   const fileNodes = [...nodes.values()]
   const depth = clusterDepth ?? pickClusterDepth(fileNodes.map(n => n.dir))
@@ -257,6 +264,8 @@ function buildGalaxy(
       orphans: fileNodes.filter(n => n.orphan).length,
       unresolved: fileNodes.reduce((a, n) => a + n.unresolved.length, 0),
       hasChurn: churn.size > 0,
+      rankedHotspots: hotspots.size,
+      topHotspots: topHotspotCount(hotspots.size),
       typeCycles,
       cuts: cycles.reduce((a, c) => a + c.cuts.length, 0),
     },

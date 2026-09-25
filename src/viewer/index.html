@@ -598,6 +598,37 @@
       select:focus-visible {
         outline: 2px solid var(--accent);
       }
+      #heat-legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      #heat-legend i {
+        flex: 1;
+        height: 6px;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #3a4466, #2f4f9a, #f3c24f, #ff8a2b, #ff3d8b);
+      }
+      .tab-note {
+        margin: 4px 8px 8px;
+        font-size: 11px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+      .chip.hot {
+        color: #ffb35c;
+        border-color: rgba(255, 138, 43, 0.5);
+        background: rgba(255, 138, 43, 0.08);
+      }
+      .tip-hot {
+        color: #ffb35c;
+        font: 11px var(--mono);
+        margin-top: 2px;
+      }
       #layout-hint {
         font-size: 11px;
         color: var(--muted);
@@ -763,12 +794,14 @@
 
       <div id="sidebar" class="panel">
         <div class="tabs" role="tablist">
-          <button role="tab" aria-selected="true" data-tab="systems">Star systems</button>
+          <button role="tab" aria-selected="true" data-tab="systems">Systems</button>
           <button role="tab" aria-selected="false" data-tab="cycles">Cycles <span id="cycle-count"></span></button>
+          <button role="tab" aria-selected="false" data-tab="hotspots">Hotspots</button>
           <button role="tab" aria-selected="false" data-tab="hubs">Hubs</button>
         </div>
         <div class="tab active" id="tab-systems"></div>
         <div class="tab" id="tab-cycles"></div>
+        <div class="tab" id="tab-hotspots"></div>
         <div class="tab" id="tab-hubs"></div>
         <div class="toggles">
           <label class="toggle">Only show cycles <input type="checkbox" id="t-cycles" /></label>
@@ -776,6 +809,14 @@
           <label class="toggle">System labels <input type="checkbox" id="t-labels" checked /></label>
           <label class="toggle">Always show planets <input type="checkbox" id="t-detail" /></label>
           <label class="toggle">Auto-rotate <input type="checkbox" id="t-rotate" /></label>
+          <label class="toggle"
+            >Colour by
+            <select id="color-by">
+              <option value="system">Star system</option>
+              <option value="hotspots">Hotspots</option>
+            </select>
+          </label>
+          <div id="heat-legend" hidden><span>cold</span><i></i><span>hot</span></div>
           <label class="toggle"
             >Layout
             <select id="layout">

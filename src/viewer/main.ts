@@ -123,6 +123,14 @@ const IMPORTS = '#5ee7ff'
 const IMPORTED_BY = '#ffb347'
 const CUT = '#ffd166'
 const PATH = '#7dffcf'
+const COLD = '#3a4466'
+/** Hotspot heat scale: cold blue through yellow and orange to pink (red stays reserved for cycles) */
+const HEAT_STOPS: [number, string][] = [
+  [0, '#2f4f9a'],
+  [0.5, '#f3c24f'],
+  [0.78, '#ff8a2b'],
+  [1, '#ff3d8b'],
+]
 const HIDDEN_LAYER = 31
 /** Opacity of files outside the current focus */
 const DIMMED = 0.045
@@ -246,6 +254,7 @@ const state = {
   cyclesOnly: false,
   hideTypeOnly: false,
   alwaysDetail: false,
+  colorBy: 'system' as 'system' | 'hotspots',
 }
 
 let focused = null as Set<string> | null
@@ -348,6 +357,34 @@ function linkInFocus(l: ViewLink): boolean {
 
 const linkIsVisible = (l: ViewLink) =>
   (!state.hideTypeOnly || !l.typeOnly) && (!state.cyclesOnly || l.circular) && linkInFocus(l)
+
+/**
+ * Heat follows hotspot rank rather than the raw score: the log-scaled score puts many ordinary files
+ * mid-range, so ranks make the few real hotspots stand out. `(share of files ranked below)^8` runs the
+ * top 2% hot, about the top 10% warm, and the rest cool.
+ */
+function heat(n: ViewNode): number {
+  if (n.hotspotRank === null || !meta.rankedHotspots) return 0
+  return (1 - (n.hotspotRank - 1) / meta.rankedHotspots) ** 8
+}
+
+function heatColor(t: number): string {
+  if (t <= 0) return COLD
+  const i = HEAT_STOPS.findIndex(([at]) => at >= t)
+  const [a0, c0] = HEAT_STOPS[Math.max(0, i - 1)]!
+  const [a1, c1] = HEAT_STOPS[i]!
+  return `#${new THREE.Color(c0).lerp(new THREE.Color(c1), a1 === a0 ? 0 : (t - a0) / (a1 - a0)).getHexString()}`
+}
+
+/** A collapsed system glows with the heat of its hottest file */
+const systemHeat = new Map<string, number>()
+for (const n of nodes) systemHeat.set(n.cluster, Math.max(systemHeat.get(n.cluster) ?? 0, heat(n)))
+
+function baseColor(n: ViewNode): string {
+  if (state.colorBy !== 'hotspots') return n.color
+  if (n.isStar && lod.collapsed.has(n.cluster)) return heatColor(systemHeat.get(n.cluster) ?? 0)
+  return heatColor(heat(n))
+}
 
 /** Warm near the origin of a blast, cooling to violet at the far edge */
 function blastColor(depth: number, maxDepth: number): string {
@@ -664,6 +701,13 @@ function updateDetail() {
   if (!changed && ++lod.frame % 20) return
   lod.dirty = false
   for (const n of nodes) setShown(n.__threeObj, n.isStar || !lod.collapsed.has(n.cluster))
+  if (state.colorBy === 'hotspots' && !focused) {
+    // collapsing swaps a star between its own heat and its system's hottest file
+    for (const c of clusters) {
+      c.star.mesh?.material.color.set(baseColor(c.star))
+      c.star.halo?.material.color.set(baseColor(c.star))
+    }
+  }
   for (const l of links) {
     const open = !lod.collapsed.has(node(idOf(l.source)).cluster) && !lod.collapsed.has(node(idOf(l.target)).cluster)
     setShown(l.__lineObj, open)
@@ -762,7 +806,7 @@ function refresh() {
   for (const n of nodes) {
     if (!n.mesh) continue
     const inFocus = !focused || focused.has(n.id)
-    let color = n.color
+    let color = baseColor(n)
     if (f && inFocus) {
       if (f.kind === 'node' && n.id !== f.id && n.cycle === null) color = neighbourColor(n, f.id)
       else if (f.kind === 'blast') color = blastColor(f.depth.get(n.id)!, maxDepth)
@@ -771,6 +815,7 @@ function refresh() {
     n.mesh.material.color.set(color)
     n.mesh.material.opacity = inFocus ? 1 : DIMMED
     if (n.halo) {
+      n.halo.material.color.set(baseColor(n))
       const lit = inFocus && (!f || f.kind === 'cluster' || f.kind === 'cycle' || n.id === state.selected?.id)
       n.halo.material.opacity = lit ? n.halo.userData.baseOpacity * (f?.kind === 'cycle' ? 1.6 : 1) : 0
     }
@@ -971,6 +1016,27 @@ $('#tab-cycles').innerHTML = cycles.length
       .join('')
   : `<div class="empty">No circular dependencies. Clean galaxy ✦</div>`
 
+const isTopHotspot = (n: ViewNode) => n.hotspotRank !== null && n.hotspotRank <= (meta.topHotspots ?? 0)
+const hotspotEffort = (n: ViewNode) => `${n.churn} commits in the last year × ${fmt(n.loc)} lines`
+
+$('#tab-hotspots').innerHTML = !meta.hasChurn
+  ? `<div class="empty">Hotspots need git history. Run inside a git repository, without <code>--no-git</code>.</div>`
+  : !meta.rankedHotspots
+    ? `<div class="empty">No files changed in the last year.</div>`
+    : `<p class="tab-note" title="Tests, data and generated files are left out">Big files that change often (commits in the last year × lines): usually the best place to start refactoring.</p>` +
+      nodes
+        .filter(n => n.hotspotRank !== null)
+        .toSorted((a, b) => a.hotspotRank! - b.hotspotRank!)
+        .slice(0, 30)
+        .map(
+          n => `<button class="row" data-node="${esc(n.id)}" title="${esc(`${n.id}\n${hotspotEffort(n)}`)}">
+            <span class="dot" style="color:${heatColor(heat(n))}"></span>
+            <span class="label">${esc(n.name)}</span>
+            <span class="count">${n.churn}× · ${fmt(n.loc)}</span>
+          </button>`,
+        )
+        .join('')
+
 $('#tab-hubs').innerHTML = nodes
   .toSorted((a, b) => b.dependents - a.dependents)
   .slice(0, 50)
@@ -1029,6 +1095,14 @@ $<HTMLInputElement>('#t-rotate').addEventListener(
   e => (controls.autoRotate = (e.target as HTMLInputElement).checked),
 )
 layoutSelect.addEventListener('change', () => switchLayout(layoutSelect.value as LayoutName))
+const colorBySelect = $<HTMLSelectElement>('#color-by')
+colorBySelect.disabled = !meta.rankedHotspots
+colorBySelect.title = meta.rankedHotspots ? '' : 'Needs git history'
+colorBySelect.addEventListener('change', () => {
+  state.colorBy = colorBySelect.value as typeof state.colorBy
+  $('#heat-legend').hidden = state.colorBy !== 'hotspots'
+  refresh()
+})
 $('#labels').addEventListener('click', e => {
   const id = closest(e, '[data-cluster]')?.dataset.cluster
   if (id) focusCluster(id)
@@ -1045,7 +1119,8 @@ function tooltip(n: ViewNode): string {
   return `<div class="tip-name">${esc(n.name)}</div>
     <div class="tip-path">${esc(n.dir)}</div>
     <div class="tip-stats"><span class="i">${n.dependents} dependents</span> · <span class="o">${n.dependencies} imports</span> · ${fmt(n.loc)} loc</div>
-    ${n.cycle !== null ? `<div class="tip-cycle">⟳ in circular cluster #${n.cycle + 1} (${cycles[n.cycle]!.size} files)</div>` : ''}`
+    ${n.cycle !== null ? `<div class="tip-cycle">⟳ in circular cluster #${n.cycle + 1} (${cycles[n.cycle]!.size} files)</div>` : ''}
+    ${isTopHotspot(n) ? `<div class="tip-hot">🔥 hotspot #${n.hotspotRank} · ${n.churn} commits × ${fmt(n.loc)} lines</div>` : ''}`
 }
 
 const tags = (l: ViewLink) =>
@@ -1109,6 +1184,7 @@ function renderDetails(n: ViewNode) {
     <div class="chips">
       <button class="chip cluster" data-cluster="${esc(c.id)}"><span class="dot" style="color:${c.color};display:inline-block;width:7px;height:7px;margin-right:5px"></span>${esc(c.id)}</button>
       ${n.cycle !== null ? `<button class="chip red" data-cycle="${n.cycle}">⟳ circular cluster #${n.cycle + 1} · ${cycles[n.cycle]!.size} files</button>` : ''}
+      ${isTopHotspot(n) ? `<span class="chip hot" title="${esc(hotspotEffort(n))}">🔥 top hotspot #${n.hotspotRank}</span>` : ''}
       ${n.orphan ? '<span class="chip">orphan</span>' : ''}
       ${n.dependents === 0 && !n.orphan ? '<span class="chip">entry point?</span>' : ''}
       ${n.violations.map(v => `<span class="chip red">rule: ${esc(v)}</span>`).join('')}
@@ -1125,7 +1201,7 @@ function renderDetails(n: ViewNode) {
       <div class="out"><b>${n.dependencies}</b><span>Imports</span></div>
       <div><b>${inst.toFixed(2)}</b><span>Instability</span><div class="bar"><i style="width:${inst * 100}%"></i></div></div>
       <div><b>${fmt(n.loc)}</b><span>Lines</span></div>
-      <div><b>${n.bytes ? (n.bytes / 1024).toFixed(1) : '–'}</b><span>KB</span></div>
+      <div title="${n.hotspotRank ? esc(`${hotspotEffort(n)}. Ranked #${n.hotspotRank} of ${fmt(meta.rankedHotspots)} files.`) : 'Not ranked: tests, data, generated files and files unchanged in the last year are left out'}"><b>${n.hotspotRank ? `#${n.hotspotRank}` : '–'}</b><span>Hotspot</span><div class="bar"><i style="width:${heat(n) * 100}%;background:${heatColor(heat(n))}"></i></div></div>
       <div><b>${meta.hasChurn ? n.churn : '–'}</b><span>Commits/yr</span></div>
     </div>
     ${

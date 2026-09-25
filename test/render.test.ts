@@ -17,6 +17,8 @@ const galaxy = (project: string): GalaxyData => ({
     orphans: 0,
     unresolved: 0,
     hasChurn: false,
+    rankedHotspots: 0,
+    topHotspots: 0,
     typeCycles: false,
     cuts: 0,
   },
