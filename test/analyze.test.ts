@@ -75,6 +75,12 @@ test('counts dependents, dependencies and local-only instability', () => {
   assert.equal(view.instability, view.dependencies / (view.dependents + view.dependencies))
 })
 
+test('ranks no hotspots without git history', () => {
+  assert.equal(galaxy.meta.history, 'disabled')
+  assert.equal(galaxy.meta.rankedHotspots, 0)
+  assert.ok(galaxy.nodes.every(n => n.hotspot === 0 && n.hotspotRank === null))
+})
+
 test('reports orphans and unresolved imports', () => {
   assert.equal(node('src/util/orphan.ts').orphan, true)
   assert.equal(node('src/util/orphan.ts').instability, null)

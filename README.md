@@ -16,6 +16,9 @@ An interactive 3D galaxy map of a JavaScript/TypeScript codebase's imports, buil
   of code, size, commits in the last year, unresolved imports and the shortest cycle through it.
 - **Cycle-breaking hints:** click a cycle to see the imports to remove to break it. The suggestion is minimal: every
   cut is needed, since putting any one back recreates a cycle.
+- **Hotspots:** big files that change often (commits in the last year × lines), the usual best place to start
+  refactoring. Listed in their own tab, and "Colour by: Hotspots" turns the map into a heat map. Tests, data and
+  generated files are left out. Needs git history.
 - **Blast radius:** see everything that depends on a file, directly or indirectly, rippling outward hop by hop, or
   everything it pulls in.
 - **Path finder:** pick two files to highlight the shortest chain of imports between them.
@@ -61,6 +64,21 @@ zoom and right-drag to pan.
 Files are grouped by the first _N_ parts of their folder path. At depth 2, `src/services/analytics/foo.ts` belongs to
 the `src/services` system; at depth 3, to `src/services/analytics`. By default the shallowest depth that gives at
 least 6 systems is used.
+
+### Hotspots
+
+A hotspot is a file that is both large and frequently changed, after Adam Tornhill's _Your Code as a Crime Scene_.
+Lines of code stand in for complexity and commits in the last year for change frequency: a big file nobody touches
+isn't a problem, nor is a tiny one that changes all the time, but one that is both is where bugs and slow changes
+concentrate. Files are ranked by commits × lines, and the top 2% are flagged 🔥. Tests (`*.test.*`, `*.spec.*`,
+`test/`, `__tests__/`, mocks), JSON and generated files are left out of the ranking but stay in the map.
+
+Change frequency comes from the checked-out branch's git history, with three corrections:
+
+- **Bulk commits** touching 100+ files (dependency upgrades, codemods, reformatting) aren't counted as changes.
+- **Renames** are followed, so a moved file keeps its history.
+- **Shallow clones** are detected and skipped rather than giving wrong numbers. In CI, check out with
+  `fetch-depth: 0` (actions/checkout) to get hotspots.
 
 ### Instability
 

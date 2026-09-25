@@ -24,6 +24,10 @@ export interface GalaxyNode {
   cycle: number | null
   unresolved: string[]
   violations: string[]
+  /** 0–1: how much of a hotspot this file is (log-scaled commits × lines); 0 when not ranked */
+  hotspot: number
+  /** 1 = biggest hotspot; null for data, generated files, tests and files unchanged in the last year */
+  hotspotRank: number | null
 }
 
 export interface GalaxyLink {
@@ -70,6 +74,16 @@ export interface GalaxyMeta {
   orphans: number
   unresolved: number
   hasChurn: boolean
+  /** Where churn came from: git history, or why there isn't any */
+  history: 'git' | 'shallow' | 'unavailable' | 'disabled'
+  /** Commits read from the last year */
+  historyCommits: number
+  /** Bulk commits (dependency upgrades, codemods…) whose changes weren't counted */
+  bulkCommits: number
+  /** Files with a hotspot rank */
+  rankedHotspots: number
+  /** Ranks 1…topHotspots count as top hotspots (the top 2%) */
+  topHotspots: number
   typeCycles: boolean
   /** Imports suggested for removal across all cycles */
   cuts: number
