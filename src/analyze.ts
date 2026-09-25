@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { cruise, type ICruiseOptions, type ICruiseResult, type IModule } from 'dependency-cruiser'
 import extractTSConfig from 'dependency-cruiser/config-utl/extract-ts-config'
 import { breakCycles } from './cycles.ts'
+import { BULK_COMMIT_FILES, readHistory, type History } from './history.ts'
 import { rankHotspots, topHotspotCount } from './hotspots.ts'
 import { stronglyConnectedComponents } from './scc.ts'
 import type { GalaxyCluster, GalaxyCycle, GalaxyData, GalaxyLink, GalaxyNode, GalaxyView } from './types.ts'
@@ -37,7 +37,7 @@ export interface AnalyzeOptions {
 interface BuildOptions {
   root: string
   typeCycles: boolean
-  churn: Map<string, number>
+  history: History
   clusterDepth?: number
 }
 
@@ -85,7 +85,9 @@ export async function analyze({
     const result: ICruiseResult = typeof output === 'string' ? JSON.parse(output) : output
     log(`Found ${result.summary.totalCruised} modules, ${result.summary.totalDependenciesCruised} dependencies`)
 
-    const galaxy = buildGalaxy(result, { root, typeCycles, churn: git ? gitChurn(log) : new Map(), clusterDepth })
+    const history = readHistory(process.cwd(), { enabled: git })
+    logHistory(history, log)
+    const galaxy = buildGalaxy(result, { root, typeCycles, history, clusterDepth })
     return { ...galaxy, view: { layout: 'spiral', editor: 'vscode', ...view } }
   } finally {
     process.chdir(cwd)
@@ -124,7 +126,7 @@ function addTo(map: Map<string, Set<string>>, key: string, value: string) {
 
 function buildGalaxy(
   result: ICruiseResult,
-  { root, typeCycles, churn, clusterDepth }: BuildOptions,
+  { root, typeCycles, history, clusterDepth }: BuildOptions,
 ): Omit<GalaxyData, 'view'> {
   const localModules = result.modules.filter(isProjectFile)
   const localIds = new Set(localModules.map(m => m.source))
@@ -138,7 +140,7 @@ function buildGalaxy(
         statements: m.experimentalStats?.topLevelStatementCount ?? 0,
         loc: countLines(m.source),
         orphan: !!m.orphan,
-        churn: churn.get(path.resolve(m.source)) ?? 0,
+        churn: history.churn.get(path.resolve(m.source)) ?? 0,
         violations: (m.rules ?? []).map(r => r.name),
       }),
     )
@@ -263,7 +265,10 @@ function buildGalaxy(
       filesInCycles: cycleOf.size,
       orphans: fileNodes.filter(n => n.orphan).length,
       unresolved: fileNodes.reduce((a, n) => a + n.unresolved.length, 0),
-      hasChurn: churn.size > 0,
+      hasChurn: history.churn.size > 0,
+      history: history.status,
+      historyCommits: history.commits,
+      bulkCommits: history.bulkCommits,
       rankedHotspots: hotspots.size,
       topHotspots: topHotspotCount(hotspots.size),
       typeCycles,
@@ -304,22 +309,25 @@ function countLines(file: string): number {
   }
 }
 
-const git = (args: string[]) =>
-  execFileSync('git', args, { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
-
-/** Number of commits touching each file in the last year, keyed by absolute path. */
-function gitChurn(log: (msg: string) => void): Map<string, number> {
-  const churn = new Map<string, number>()
-  try {
-    const top = git(['rev-parse', '--show-toplevel']).trim()
-    for (const line of git(['log', '--since=1.year', '--name-only', '--format=']).split('\n')) {
-      if (!line) continue
-      const abs = path.join(top, line)
-      churn.set(abs, (churn.get(abs) ?? 0) + 1)
+function logHistory(history: History, log: (msg: string) => void) {
+  switch (history.status) {
+    case 'git': {
+      const bulk = history.bulkCommits
+        ? ` (${history.bulkCommits} bulk commit${history.bulkCommits === 1 ? '' : 's'} touching ${BULK_COMMIT_FILES}+ files not counted)`
+        : ''
+      log(`Read ${history.commits.toLocaleString()} commits from the last year${bulk}`)
+      break
     }
-    log(`Read git history (${churn.size} files touched in the last year)`)
-  } catch {
-    // not a git repo — churn stays empty
+    case 'shallow':
+      log(
+        '\x1b[33mShallow git clone: commit history is incomplete, so churn and hotspots are skipped.\x1b[0m ' +
+          'Fetch full history first (git fetch --unshallow, or fetch-depth: 0 with actions/checkout).',
+      )
+      break
+    case 'unavailable':
+      log('Not a git repository: churn and hotspots are skipped')
+      break
+    case 'disabled':
+      break
   }
-  return churn
 }

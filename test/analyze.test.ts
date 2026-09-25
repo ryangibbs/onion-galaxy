@@ -76,6 +76,7 @@ test('counts dependents, dependencies and local-only instability', () => {
 })
 
 test('ranks no hotspots without git history', () => {
+  assert.equal(galaxy.meta.history, 'disabled')
   assert.equal(galaxy.meta.rankedHotspots, 0)
   assert.ok(galaxy.nodes.every(n => n.hotspot === 0 && n.hotspotRank === null))
 })

@@ -1019,11 +1019,18 @@ $('#tab-cycles').innerHTML = cycles.length
 const isTopHotspot = (n: ViewNode) => n.hotspotRank !== null && n.hotspotRank <= (meta.topHotspots ?? 0)
 const hotspotEffort = (n: ViewNode) => `${n.churn} commits in the last year × ${fmt(n.loc)} lines`
 
+const NO_HISTORY: Record<string, string> = {
+  shallow:
+    'This map was made from a shallow git clone, which lacks the history hotspots need. Fetch full history (<code>git fetch --unshallow</code>, or <code>fetch-depth: 0</code> with actions/checkout) and map it again.',
+  unavailable: 'Hotspots need git history, and this project isn’t a git repository.',
+  disabled: 'Hotspots need git history, which <code>--no-git</code> turned off.',
+}
+
 $('#tab-hotspots').innerHTML = !meta.hasChurn
-  ? `<div class="empty">Hotspots need git history. Run inside a git repository, without <code>--no-git</code>.</div>`
+  ? `<div class="empty">${NO_HISTORY[meta.history ?? 'unavailable'] ?? NO_HISTORY.unavailable}</div>`
   : !meta.rankedHotspots
     ? `<div class="empty">No files changed in the last year.</div>`
-    : `<p class="tab-note" title="Tests, data and generated files are left out">Big files that change often (commits in the last year × lines): usually the best place to start refactoring.</p>` +
+    : `<p class="tab-note" title="${esc(`Tests, data and generated files are left out. ${meta.bulkCommits ? `${meta.bulkCommits} bulk commits (100+ files each, like dependency upgrades) aren’t counted as changes. ` : ''}Renamed files keep their history.`)}">Big files that change often (commits in the last year × lines): usually the best place to start refactoring.</p>` +
       nodes
         .filter(n => n.hotspotRank !== null)
         .toSorted((a, b) => a.hotspotRank! - b.hotspotRank!)

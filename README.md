@@ -73,6 +73,13 @@ isn't a problem, nor is a tiny one that changes all the time, but one that is bo
 concentrate. Files are ranked by commits × lines, and the top 2% are flagged 🔥. Tests (`*.test.*`, `*.spec.*`,
 `test/`, `__tests__/`, mocks), JSON and generated files are left out of the ranking but stay in the map.
 
+Change frequency comes from the checked-out branch's git history, with three corrections:
+
+- **Bulk commits** touching 100+ files (dependency upgrades, codemods, reformatting) aren't counted as changes.
+- **Renames** are followed, so a moved file keeps its history.
+- **Shallow clones** are detected and skipped rather than giving wrong numbers. In CI, check out with
+  `fetch-depth: 0` (actions/checkout) to get hotspots.
+
 ### Instability
 
 Each file's instability is `imports / (dependents + imports)`, Robert C. Martin's metric applied to single files:

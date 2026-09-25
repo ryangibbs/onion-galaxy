@@ -74,6 +74,12 @@ export interface GalaxyMeta {
   orphans: number
   unresolved: number
   hasChurn: boolean
+  /** Where churn came from: git history, or why there isn't any */
+  history: 'git' | 'shallow' | 'unavailable' | 'disabled'
+  /** Commits read from the last year */
+  historyCommits: number
+  /** Bulk commits (dependency upgrades, codemods…) whose changes weren't counted */
+  bulkCommits: number
   /** Files with a hotspot rank */
   rankedHotspots: number
   /** Ranks 1…topHotspots count as top hotspots (the top 2%) */
