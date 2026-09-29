@@ -8,6 +8,21 @@ An interactive 3D galaxy map of a JavaScript/TypeScript codebase's imports, buil
 [dependency-cruiser](https://github.com/sverweij/dependency-cruiser). Think of
 [madge](https://github.com/pahen/madge), but you can fly through it.
 
+![A codebase mapped as a galaxy: 915 files in 29 star systems, with circular dependencies in red](https://raw.githubusercontent.com/ryangibbs/onion-galaxy/main/docs/images/overview.webp)
+
+<table>
+  <tr>
+    <td width="33%"><img src="https://raw.githubusercontent.com/ryangibbs/onion-galaxy/main/docs/images/cycles.webp" alt="A 101-file cycle, with the 28 imports to cut highlighted in yellow and listed in the side panel" /></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/ryangibbs/onion-galaxy/main/docs/images/hotspots.webp" alt="Hotspot heat map with App.tsx selected: the #1 hotspot at 102 commits in the last year and 12,942 lines" /></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/ryangibbs/onion-galaxy/main/docs/images/blast-radius.webp" alt="Blast radius of a core index.ts: 500 files, 55% of the codebase, depend on it within 4 hops" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Cycle-breaking hints</b><br />the imports to remove to break a cycle</td>
+    <td align="center"><b>Hotspots</b><br />big files that change often</td>
+    <td align="center"><b>Blast radius</b><br />everything a change can reach</td>
+  </tr>
+</table>
+
 - **Star systems** are directories, laid out along spiral arms with the biggest at the galactic core.
 - **Stars** are each system's most-imported file; **planets** are the other files, sized by how many files import them.
 - **Red** planets and edges are runtime circular dependencies. `import type` edges are ignored, since they're erased
