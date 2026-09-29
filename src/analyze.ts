@@ -59,7 +59,10 @@ export async function analyze({
   const cwd = process.cwd()
   process.chdir(root)
   try {
+    const explicitTsConfig = tsConfig !== undefined
     tsConfig ??= existsSync('tsconfig.json') ? 'tsconfig.json' : undefined
+    const parsedTsConfig = tsConfig ? readTsConfig(tsConfig, explicitTsConfig, log) : undefined
+    if (!parsedTsConfig) tsConfig = undefined
     log(`Cruising ${paths.join(', ')}${tsConfig ? ` with ${tsConfig}` : ''}…`)
 
     const cruiseOptions: ICruiseOptions = {
@@ -80,7 +83,7 @@ export async function analyze({
         conditionNames: ['import', 'require', 'node', 'default', 'types'],
         mainFields: ['module', 'main', 'types', 'typings'],
       },
-      { tsConfig: tsConfig ? extractTSConfig(tsConfig) : undefined },
+      { tsConfig: parsedTsConfig },
     )
     const result: ICruiseResult = typeof output === 'string' ? JSON.parse(output) : output
     log(`Found ${result.summary.totalCruised} modules, ${result.summary.totalDependenciesCruised} dependencies`)
@@ -306,6 +309,29 @@ function countLines(file: string): number {
     return n
   } catch {
     return 0
+  }
+}
+
+/**
+ * Parses a tsconfig. It commonly `extends` a package (e.g. `@tsconfig/node20`), which only resolves
+ * once the project's dependencies are installed. An auto-detected tsconfig that can't be read is
+ * skipped with a warning, since mapping without it only loses tsconfig path aliases; one given with
+ * --ts-config is an error, since it was asked for.
+ */
+function readTsConfig(file: string, explicit: boolean, log: (msg: string) => void) {
+  try {
+    return extractTSConfig(file)
+  } catch (error) {
+    const reason = String((error as Error).message ?? error)
+      .split('\n')[0]!
+      .replace(/^Error: /, '')
+      .replace(/\.$/, '') // the message goes into a sentence of our own
+    if (explicit) throw new Error(`Couldn't read ${file}: ${reason}`, { cause: error })
+    log(
+      `\x1b[33mCouldn't read ${file}, so mapping without it (tsconfig path aliases won't resolve).\x1b[0m ${reason}. ` +
+        'Installing the project’s dependencies usually fixes this.',
+    )
+    return undefined
   }
 }
 
