@@ -325,6 +325,7 @@ function readTsConfig(file: string, explicit: boolean, log: (msg: string) => voi
     const reason = String((error as Error).message ?? error)
       .split('\n')[0]!
       .replace(/^Error: /, '')
+      .replace(/\.$/, '') // the message goes into a sentence of our own
     if (explicit) throw new Error(`Couldn't read ${file}: ${reason}`, { cause: error })
     log(
       `\x1b[33mCouldn't read ${file}, so mapping without it (tsconfig path aliases won't resolve).\x1b[0m ${reason}. ` +
