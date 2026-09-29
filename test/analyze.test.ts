@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { analyze } from '../src/analyze.ts'
@@ -92,6 +95,32 @@ test('groups files into star systems by directory', () => {
   assert.equal(galaxy.meta.clusterDepth, 2)
   assert.deepEqual(galaxy.clusters.map(c => c.id).toSorted(), ['src', 'src/api', 'src/core', 'src/ui', 'src/util'])
   assert.equal(node('src/core/a.ts').cluster, 'src/core')
+})
+
+test('maps a project whose tsconfig extends a package that is not installed', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'onion-galaxy-tsconfig-'))
+  try {
+    mkdirSync(path.join(project, 'src'))
+    writeFileSync(path.join(project, 'tsconfig.json'), '{ "extends": "@tsconfig/not-installed/tsconfig.json" }')
+    writeFileSync(path.join(project, 'src/a.ts'), "import { b } from './b'\nexport const a = b\n")
+    writeFileSync(path.join(project, 'src/b.ts'), 'export const b = 1\n')
+    const messages: string[] = []
+    const result = await analyze({ root: project, paths: ['src'], git: false, log: m => messages.push(m) })
+    assert.equal(result.meta.files, 2)
+    assert.equal(result.meta.imports, 1)
+    assert.ok(
+      messages.some(m => m.includes("Couldn't read tsconfig.json")),
+      'warns about the tsconfig',
+    )
+
+    // asked for explicitly, the same tsconfig is an error rather than a warning
+    await assert.rejects(
+      analyze({ root: project, paths: ['src'], git: false, tsConfig: 'tsconfig.json' }),
+      /Couldn't read tsconfig\.json/,
+    )
+  } finally {
+    rmSync(project, { recursive: true, force: true })
+  }
 })
 
 test('honours an explicit cluster depth', async () => {

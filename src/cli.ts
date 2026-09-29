@@ -76,6 +76,10 @@ const galaxy = await analyze({
   clusterDepth,
   view: { layout, editor },
   log,
+}).catch((error: unknown) => {
+  // Expected failures (bad options, unreadable config) read better without a stack trace
+  console.error(`\x1b[31m✖\x1b[0m ${error instanceof Error ? error.message : String(error)}`)
+  process.exit(1)
 })
 
 const { meta } = galaxy
