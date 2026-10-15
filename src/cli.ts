@@ -93,7 +93,8 @@ if (meta.topHotspots) {
   const top = galaxy.nodes
     .filter(n => n.hotspotRank !== null && n.hotspotRank <= 3)
     .toSorted((a, b) => a.hotspotRank! - b.hotspotRank!)
-    .map(n => `${n.name} (${n.churn} commits, ${n.loc.toLocaleString()} lines)`)
+    // paths, not names: projects often have several files called index.ts or schemas.ts
+    .map(n => `${n.id} (${n.churn} commits, ${n.loc.toLocaleString()} lines)`)
   log(`\x1b[33mTop hotspots:\x1b[0m ${top.join(', ')}`)
 }
 
