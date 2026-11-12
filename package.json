@@ -56,11 +56,11 @@
   "devDependencies": {
     "3d-force-graph": "^1.80.0",
     "@types/node": "^26.6.2",
-    "@types/three": "^0.186.0",
+    "@types/three": "^0.187.0",
     "esbuild": "^0.28.2",
-    "oxfmt": "^0.72.0",
+    "oxfmt": "^0.78.0",
     "oxlint": "^1.85.0",
     "semantic-release": "^25.0.9",
-    "three": "^0.186.0"
+    "three": "^0.187.0"
   }
 }
